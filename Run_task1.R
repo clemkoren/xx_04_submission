@@ -12,7 +12,6 @@ sapply(fileSources, source, .GlobalEnv)
 # load individual level data file
 d <- readRDS("data_raw/individual_level_data.RDS")
 d
-View(d)
 summary(d)
 
 
@@ -46,14 +45,14 @@ nb_days*nb_municip
 table_date <- data.table(date = seq.Date(start_date, end_date, by = "day"))
 
 # table listing the location code of all municipalities
+library(fhidata)
 table_location <- norway_locations_b2020[,1]
 colnames(table_location)[1] <- "location_code"
 
 # add empty lines to d_agg based on the full list of dates and locations
 # and fill them with a value of 0 sick individuals
 library(tidyr)
-d_agg_compl <- d_agg %>% complete(table_date, table_location, fill = list(x=0))
-colnames(d_agg_compl)[3] <- "value"
+d_agg_compl <- d_agg %>% complete(table_date, table_location, fill = list(value=0))
 summary(d_agg_compl)
 
 
@@ -63,11 +62,13 @@ summary(d_agg_compl)
 #### Q.8 Collapse data to ISOweek / ISOyear ####
 
 # convert all dates to ISO year / week
+library(fhi)
 d_agg_compl$date <- isoyearweek(d_agg_compl$date)
 summary(d_agg_compl)
 
 # aggregate according to date
 d_clean <- aggregate(d_agg_compl$value, FUN = sum, by = list(date = d_agg_compl$date, location_code = d_agg_compl$location_code))
+colnames(d_clean)[3] <- "value"
 summary(d_clean)
 
 
@@ -87,3 +88,55 @@ d_training_split <- split(d_training, d_training$location_code)
 d_production_split <- split(d_production, d_production$location_code)
 
 
+
+
+
+#### Q.10 Regression model ####
+
+# exploratory graph on one municipality
+x <- subset(d_training, d_training$location_code == "municip0301")
+
+plot(x$value, type="l", pch=20, lwd=0.4, xaxt="n",
+     main="Weekly number of sick people in municipality 0301", ylab="Number of sick people", xlab="Year")
+axis(side=1, at=c(0, 52, 104, 156, 208, 260, 312, 364, 416, 468, 520),
+     labels=c("2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020"), las=2, tick=T)
+# add a vertical line every 52 weeks = roughly separating each year
+abline(v=c(0, 52, 104, 156, 208, 260, 312, 364, 416, 468, 520), lwd= 0.5, col="grey")
+
+
+
+# we see seasonality in the number of recorded sick people every year, with more sick people in the middle of the year
+# the function CreateFakeData also indicates a slight positive trend
+
+
+
+# I will fit a sine curve to represent the seasonality of the data
+
+# make a new variable for the number of weeks since the beginning of the study, to help with modelisation
+x$week_id <- c(1:521)
+summary(x)
+
+# fit a sinusoidal linear model
+xc <- cos(2 * pi * x$week_id / 52)
+xs <- sin(2 * pi * x$week_id / 52)
+fit.lm <- lm(x$value ~ xc + xs)
+summary(fit.lm)
+
+
+#### Q.11 ####
+
+# I am assuming that the 95% confidence interval given by predict represents well enough the 2 standard deviation interval requested
+x_pred_int <- as.data.frame(predict(fit.lm, newdata = x, interval = "predict", level = 0.95))
+
+# plot the fitted prediction, upper and lower limit of the interval on the previous graph
+lines(x$week_id, x_pred_int$fit, col="red")
+lines(x$week_id, x_pred_int$lwr, col="grey")
+lines(x$week_id, x_pred_int$upr, col="grey")
+
+
+
+#### Q.12 ####
+
+
+
+# I would substract the upper values of the interval, 
