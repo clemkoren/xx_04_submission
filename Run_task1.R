@@ -72,6 +72,8 @@ colnames(d_clean)[3] <- "value"
 summary(d_clean)
 
 
+# export the data in data_clean for future use
+saveRDS(d_clean, file = "data_clean/weekly_cases_per_municip.rds")
 
 
 
@@ -94,10 +96,10 @@ d_production_split <- split(d_production, d_production$location_code)
 #### Q.10 Regression model ####
 
 # exploratory graph on one municipality
-x <- subset(d_training, d_training$location_code == "municip0301")
+x <- d_training_split$municip0301
 
-plot(x$value, type="l", pch=20, lwd=0.4, xaxt="n",
-     main="Weekly number of sick people in municipality 0301", ylab="Number of sick people", xlab="Year")
+plot(x$value, type="l", pch=20, lwd=0.4, xaxt="n", las=2,
+     main="Weekly cases of Disease X in municipality 0301", ylab="Number of cases", xlab="Year")
 axis(side=1, at=c(0, 52, 104, 156, 208, 260, 312, 364, 416, 468, 520),
      labels=c("2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020"), las=2, tick=T)
 # add a vertical line every 52 weeks = roughly separating each year
@@ -123,20 +125,39 @@ fit.lm <- lm(x$value ~ xc + xs)
 summary(fit.lm)
 
 
-#### Q.11 ####
+
+
+
+#### Q.11 Prediction Interval ####
 
 # I am assuming that the 95% confidence interval given by predict represents well enough the 2 standard deviation interval requested
 x_pred_int <- as.data.frame(predict(fit.lm, newdata = x, interval = "predict", level = 0.95))
 
 # plot the fitted prediction, upper and lower limit of the interval on the previous graph
 lines(x$week_id, x_pred_int$fit, col="red")
-lines(x$week_id, x_pred_int$lwr, col="grey")
-lines(x$week_id, x_pred_int$upr, col="grey")
+lines(x$week_id, x_pred_int$lwr, col="darkgrey", lwd=0.5)
+lines(x$week_id, x_pred_int$upr, col="darkgrey", lwd=0.5)
+legend ("bottomleft", legend = c("model prediction", "95% confidence interval"), col=c("red", "darkgrey"), lwd=1.3, cex=0.8)
 
 
 
-#### Q.12 ####
+
+
+#### Q.12 Identify potential outbreaks####
+
+x$outbreak <- x$value - x_pred_int$upr
+x$outbreak[x$outbreak<=0] <- NA
+x$outbreak[x$outbreak>0] <- 1
+
+points(x$week_id, x$outbreak, pch=20)
+
+# due to lack of time, I could not find a proper way to display the outbreaks
 
 
 
-# I would substract the upper values of the interval, 
+
+#### Rest of the exercice ####
+
+# I would have made a function to automate tasks 10 to 18 for each municipality.
+
+
