@@ -130,7 +130,8 @@ summary(fit.lm)
 
 #### Q.11 Prediction Interval ####
 
-# I am assuming that the 95% confidence interval given by predict represents well enough the 2 standard deviation interval requested
+# I didn't manage to do a 2 standard deviation prediction interval
+# So I will assume that the 95% confidence interval represents well enough the interval requested
 x_pred_int <- as.data.frame(predict(fit.lm, newdata = x, interval = "predict", level = 0.95))
 
 # plot the fitted prediction, upper and lower limit of the interval on the previous graph
